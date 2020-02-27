@@ -1,5 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -8,13 +11,167 @@ using OpenTK;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Graphics;
 using OpenTK.Input;
-
-using System.Drawing;
-using System.Drawing.Imaging;
-using System.Runtime.InteropServices;
+using System.Diagnostics;
 
 namespace RogueInProgress
 {
+    public class MapData
+    {
+        public Dictionary<(int x, int y), MapTile> ship = new Dictionary<(int x, int y), MapTile>();
+        public int playerX = 0;
+        public int playerY = 0;
+        public List<CrewMember> crew = new List<CrewMember>();
+
+        public MapTile GetShipTile(int x, int y)
+        {
+            if (ship.TryGetValue((x, y), out MapTile tile) == true)
+            {
+                return tile;
+            }
+            else // no ship here only empty void
+            {
+                tile = new MapTile();
+                tile.x = x;
+                tile.y = y;
+                tile.backColor = Color.Black;
+                tile.foreColor = Color.Black;
+                tile.type = "void";
+                return tile;
+            }
+        }
+
+        public Dictionary<(int x, int y), MapTile> fragment = new Dictionary<(int x, int y), MapTile>();
+        public int fragmentX = 0;
+        public int fragmentY = 0;
+
+        public MapTile GetFragmentTile(int x, int y)
+        {
+            if (fragment.TryGetValue((x, y), out MapTile tile) == true)
+            {
+                return tile;
+            }
+            else // no ship here only empty void
+            {
+                tile = new MapTile();
+                tile.x = x;
+                tile.y = y;
+                tile.backColor = Color.Black;
+                tile.foreColor = Color.Black;
+                tile.type = "void";
+                return tile;
+            }
+        }
+    }
+
+    public class MapRender
+    {
+        Stopwatch sw = new Stopwatch();
+
+        public MapRender()
+        {
+            sw.Start();
+        }
+
+        public void DrawBackground(MapTile tile, int gridX, int gridY, double alpha = 1.0)
+        {
+            // solid block glyph
+            int glyphX = 11;
+            int glyphY = 13;
+
+            double glyphRatio = 1.0 / 16.0; // 16 glyphs per row
+            int tileSize = 20; // pixels per glyph 20x20
+
+            GL.Color3((double)tile.backColor.R * alpha, (double)tile.backColor.G * alpha, (double)tile.backColor.B * alpha);
+
+            GL.TexCoord2(glyphX * glyphRatio, glyphY * glyphRatio);
+            GL.Vertex3(gridX * tileSize, gridY * tileSize, 0);
+
+            GL.TexCoord2((glyphX + 1) * glyphRatio, glyphY * glyphRatio);
+            GL.Vertex3(gridX * tileSize + tileSize, gridY * tileSize, 0);
+
+            GL.TexCoord2((glyphX + 1) * glyphRatio, (glyphY + 1) * glyphRatio);
+            GL.Vertex3(gridX * tileSize + tileSize, gridY * tileSize + tileSize, 0);
+
+            GL.TexCoord2(glyphX * glyphRatio, (glyphY + 1) * glyphRatio);
+            GL.Vertex3(gridX * tileSize, gridY * tileSize + tileSize, 0);
+        }
+
+        public void DrawGlyph(MapTile tile, int gridX, int gridY, double alpha = 1.0)
+        {
+            int glyphX = tile.glyph % 16;
+            int glyphY = tile.glyph / 16;
+
+            double glyphRatio = 1.0 / 16.0; // 16 glyphs per row
+            int tileSize = 20; // pixels per glyph 20x20
+
+            // GL.Color3(tile.foreColor.R, tile.foreColor.G, tile.foreColor.B);
+            GL.Color3((double)tile.foreColor.R * alpha, (double)tile.foreColor.G * alpha, (double)tile.foreColor.B * alpha);
+
+            GL.TexCoord2(glyphX * glyphRatio, glyphY * glyphRatio);
+            GL.Vertex3(gridX * tileSize, gridY * tileSize, 0);
+
+            GL.TexCoord2((glyphX + 1) * glyphRatio, glyphY * glyphRatio);
+            GL.Vertex3(gridX * tileSize + tileSize, gridY * tileSize, 0);
+
+            GL.TexCoord2((glyphX + 1) * glyphRatio, (glyphY + 1) * glyphRatio);
+            GL.Vertex3(gridX * tileSize + tileSize, gridY * tileSize + tileSize, 0);
+
+            GL.TexCoord2(glyphX * glyphRatio, (glyphY + 1) * glyphRatio);
+            GL.Vertex3(gridX * tileSize, gridY * tileSize + tileSize, 0);
+        }
+
+        public void DrawShip(MapData map, int gridWidth, int gridHeight)
+        {
+            for (int gx = 0; gx < gridWidth; gx++)
+            {
+                for (int gy = 0; gy < gridHeight; gy++)
+                {
+                    MapTile tile = map.GetShipTile(gx - gridWidth/2 + map.playerX, gy - gridHeight/2 + map.playerY);
+
+                    if (!(tile.type == "void"))
+                    {
+                        DrawBackground(tile, gx, gy);
+                        DrawGlyph(tile, gx, gy);
+                    }
+                }
+            }
+        }
+
+        public void DrawFragment(MapData map, int gridWidth, int gridHeight)
+        {
+            double alpha = Math.Cos(sw.ElapsedMilliseconds / 250);
+
+            for (int gx = 0; gx < gridWidth; gx++)
+            {
+                for (int gy = 0; gy < gridHeight; gy++)
+                {
+                    MapTile tile = map.GetFragmentTile(gx - gridWidth / 2 + map.fragmentX, gy - gridHeight / 2 + map.fragmentY);
+
+                    if (!(tile.type == "void"))
+                    {
+                        // DrawBackground(tile, gx, gy, alpha);
+                        DrawGlyph(tile, gx, gy, alpha);
+                    }
+                }
+            }
+        }
+    }
+
+    public class CrewMember
+    {
+        public int x;
+        public int y;
+        public Color foreColor;
+
+        public int destX;
+        public int destY;
+        public int stateOfMind; // what are we trying to do? current goal?
+
+        public int engineeringSkill;
+        public int pilotSkill;
+        public int repairSkill;
+    }
+
     public class MapTile
     {
         public int x;
@@ -22,6 +179,7 @@ namespace RogueInProgress
         public Color backColor;
         public Color foreColor;
         public byte glyph;
+        public string type;
     }
 
     public class Game : GameWindow
@@ -30,88 +188,13 @@ namespace RogueInProgress
         const double tileRatio = 1.0 / 16.0;
         const int tileSize = 20;
 
-        int playerMapX = 0;
-        int playerMapY = 0;
-
         KeyboardState lastInput;
+        bool fragmentPlacementMode = true;
 
-        Dictionary<(int x, int y), MapTile> map = new Dictionary<(int x, int y), MapTile>();
-        MapTile defaultTile = new MapTile();
+        MapData map = new MapData();
+        MapRender render = new MapRender();
 
         public Game(int width, int height, string title) : base(width, height, GraphicsMode.Default, title) { }
-
-        public void DrawMap(int centerX, int centerY, int radius)
-        {
-            int offsetX = radius * tileSize; // graphical offset from center
-            int offsetY = radius * tileSize;
-
-            for (int dx = -radius; dx <= radius; dx++)
-            {
-                for (int dy = -radius; dy <= radius; dy++)
-                {
-                    MapTile currentTile = new MapTile();
-                    map.TryGetValue((centerX + dx, centerY + dy), out currentTile);
-
-                    if (currentTile != null)
-                    {
-                        int gx = (dx + radius) * tileSize;
-                        int gy = (dy + radius) * tileSize;
-
-                        // solid block
-                        int tileX = 11;
-                        int tileY = 13;
-
-                        GL.Color3(currentTile.backColor.R, currentTile.backColor.G, currentTile.backColor.B);
-
-                        GL.TexCoord2(tileX * tileRatio, tileY * tileRatio);
-                        GL.Vertex3(gx, gy, 0);
-
-                        GL.TexCoord2((tileX + 1) * tileRatio, tileY * tileRatio);
-                        GL.Vertex3(gx + tileSize, gy, 0);
-
-                        GL.TexCoord2((tileX + 1) * tileRatio, (tileY + 1) * tileRatio);
-                        GL.Vertex3(gx + tileSize, gy + tileSize, 0);
-
-                        GL.TexCoord2(tileX * tileRatio, (tileY + 1) * tileRatio);
-                        GL.Vertex3(gx, gy + tileSize, 0);
-
-                        //GL.Vertex3(gx, gy, 0);
-                        //GL.Vertex3(gx + tileSize, gy, 0);
-                        //GL.Vertex3(gx + tileSize, gy + tileSize, 0);
-                        //GL.Vertex3(gx, gy + tileSize, 0);
-
-                        if (dx == 0 && dy == 0)
-                        {
-                            tileX = 0;
-                            tileY = 4;
-                            currentTile.foreColor = Color.White;
-                        }
-                        else
-                        {
-                            tileX = currentTile.glyph % 16;
-                            tileY = currentTile.glyph / 16;
-                        }
-
-                        // if(false)
-                        {
-                            GL.Color3(currentTile.foreColor.R, currentTile.foreColor.G, currentTile.foreColor.B);
-
-                            GL.TexCoord2(tileX * tileRatio, tileY * tileRatio);
-                            GL.Vertex3(gx, gy, 0);
-
-                            GL.TexCoord2((tileX + 1) * tileRatio, tileY * tileRatio);
-                            GL.Vertex3(gx + tileSize, gy, 0);
-
-                            GL.TexCoord2((tileX + 1) * tileRatio, (tileY + 1) * tileRatio);
-                            GL.Vertex3(gx + tileSize, gy + tileSize, 0);
-
-                            GL.TexCoord2(tileX * tileRatio, (tileY + 1) * tileRatio);
-                            GL.Vertex3(gx, gy + tileSize, 0);
-                        }
-                    }
-                }
-            }
-        }
 
         protected override void OnUpdateFrame(FrameEventArgs e)
         {
@@ -124,22 +207,71 @@ namespace RogueInProgress
             
             if (input.IsKeyDown(Key.Up) && !lastInput.IsKeyDown(Key.Up))
             {
-                playerMapY--;
+                if (!fragmentPlacementMode)
+                {
+                    map.playerY--;
+                }
+                else
+                {
+                    map.fragmentY++;
+                }
             }
 
             if (input.IsKeyDown(Key.Down) && !lastInput.IsKeyDown(Key.Down))
             {
-                playerMapY++;
+                if (!fragmentPlacementMode)
+                {
+                    map.playerY++;
+                }
+                else
+                {
+                    map.fragmentY--;
+                }
             }
 
             if (input.IsKeyDown(Key.Left) && !lastInput.IsKeyDown(Key.Left))
             {
-                playerMapX--;
+                if (!fragmentPlacementMode)
+                {
+                    map.playerX--;
+                }
+                else
+                {
+                    map.fragmentX++;
+                }
             }
 
             if (input.IsKeyDown(Key.Right) && !lastInput.IsKeyDown(Key.Right))
             {
-                playerMapX++;
+                if (!fragmentPlacementMode)
+                {
+                    map.playerX++;
+                }
+                else
+                {
+                    map.fragmentX--;
+                }
+            }
+
+            if (input.IsKeyDown(Key.Space) && !lastInput.IsKeyDown(Key.Space))
+            {
+                if (!fragmentPlacementMode)
+                {
+                    //
+                }
+                else
+                {
+                    // set fragment to ship map
+
+                    foreach (KeyValuePair<(int x, int y), MapTile> item in map.fragment)
+                    {
+                        int x = item.Key.x;
+                        int y = item.Key.y;
+                        MapTile tile = item.Value;
+
+                        map.ship[(x - map.fragmentX, y - map.fragmentY)] = tile;
+                    }
+                }
             }
 
             lastInput = input;
@@ -153,24 +285,33 @@ namespace RogueInProgress
 
             GL.ClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
-            //textureIndex = LoadTexture("test.png");
             textureIndex = LoadTexture("cp437_20x20.png"); // 16x16 texture tiles of 20x20 size
 
             Random rnd = new Random();
 
-            for (int dx = -100; dx <= 100; dx++)
-            {
-                for (int dy = -100; dy <= 100; dy++)
-                {
-                    MapTile newTile = new MapTile();
-                    newTile.x = dx;
-                    newTile.y = dy;
-                    newTile.glyph = (byte)rnd.Next(256);
-                    newTile.backColor = Color.FromArgb((byte)rnd.Next(Math.Abs(dx)), (byte)rnd.Next(Math.Abs(dx)), (byte)rnd.Next(Math.Abs(dx)));
-                    newTile.foreColor = Color.FromArgb((byte)rnd.Next(256), (byte)rnd.Next(256), (byte)rnd.Next(256));
-                    map[(dx, dy)] = newTile;
-                }
-            }
+            // set ship map initially for testing
+
+            MapTile tile = new MapTile();
+            tile.foreColor = Color.Green;
+            tile.type = "floor";
+            tile.glyph = 14 + (16 * 12);
+
+            map.ship[(0, 0)] = tile;
+            map.ship[(1, 0)] = tile;
+            map.ship[(0, 1)] = tile;
+            map.ship[(-1, 0)] = tile;
+            map.ship[(0, -1)] = tile;
+
+            tile = new MapTile();
+            tile.foreColor = Color.Red;
+            tile.type = "floor";
+            tile.glyph = 12 + (16 * 14);
+
+            map.fragment[(0, 0)] = tile;
+            map.fragment[(1, 0)] = tile;
+            map.fragment[(0, 1)] = tile;
+            map.fragment[(-1, 0)] = tile;
+            map.fragment[(0, -1)] = tile;
 
             base.OnLoad(e);
         }
@@ -193,47 +334,8 @@ namespace RogueInProgress
 
             GL.Begin(PrimitiveType.Quads);
 
-            DrawMap(playerMapX, playerMapY, 21);
-
-            if (false)
-            {
-                double tileX = 2;
-                double tileY = 0;
-
-                double px = 0;
-                double py = 0;
-
-                int tileI = 0;
-
-                for (py = 0; py < 16; py++)
-                {
-                    for (px = 0; px < 16; px++)
-                    {
-                        tileI++;
-
-                        tileX = (int)(tileI % 16);
-                        tileY = (int)(tileI / 16);
-
-                        // solid block
-                        //tileX = 11;
-                        //tileY = 13;
-
-                        GL.Color3(px * tileRatio, py * tileRatio, 0.5);
-
-                        GL.TexCoord2(tileX * tileRatio, tileY * tileRatio);
-                        GL.Vertex3(px * tileSize, py * tileSize, 0);
-
-                        GL.TexCoord2((tileX + 1) * tileRatio, tileY * tileRatio);
-                        GL.Vertex3((px + 1) * tileSize, py * tileSize, 0);
-
-                        GL.TexCoord2((tileX + 1) * tileRatio, (tileY + 1) * tileRatio);
-                        GL.Vertex3((px + 1) * tileSize, (py + 1) * tileSize, 0);
-
-                        GL.TexCoord2(tileX * tileRatio, (tileY + 1) * tileRatio);
-                        GL.Vertex3(px * tileSize, (py + 1) * tileSize, 0);
-                    }
-                }
-            }
+            render.DrawShip(map, 32, 32);
+            render.DrawFragment(map, 32, 32);
 
             GL.End();
 
@@ -259,17 +361,15 @@ namespace RogueInProgress
 
             BitmapData data = bitmap.LockBits(new Rectangle(0, 0, bitmap.Width, bitmap.Height), ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
 
-            // Get the address of the first line.
             IntPtr ptr = data.Scan0;
 
-            // Declare an array to hold the bytes of the bitmap.
             int bytes = Math.Abs(data.Stride) * data.Height;
             byte[] rgbValues = new byte[bytes];
 
-            // Copy the RGB values into the array.
             Marshal.Copy(ptr, rgbValues, 0, bytes);
 
-            // Set every third value to 255. A 24bpp bitmap will look red.  
+            // Set every alpha channel byte to 0 (transparent) if the pixel is black
+            // this allows glyphs to be transparent
             for (int counter = 3; counter < rgbValues.Length; counter += 4)
             {
                 if (rgbValues[counter - 3] + rgbValues[counter - 2] + rgbValues[counter - 1] == 0)
@@ -282,7 +382,6 @@ namespace RogueInProgress
                 }
             }
 
-            // Copy the RGB values back to the bitmap
             Marshal.Copy(rgbValues, 0, ptr, bytes);
 
             GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, data.Width, data.Height, 0, OpenTK.Graphics.OpenGL.PixelFormat.Bgra, PixelType.UnsignedByte, data.Scan0);
