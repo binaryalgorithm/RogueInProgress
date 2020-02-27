@@ -104,7 +104,6 @@ namespace RogueInProgress
             double glyphRatio = 1.0 / 16.0; // 16 glyphs per row
             int tileSize = 20; // pixels per glyph 20x20
 
-            // GL.Color3(tile.foreColor.R, tile.foreColor.G, tile.foreColor.B);
             GL.Color3((double)tile.foreColor.R * alpha, (double)tile.foreColor.G * alpha, (double)tile.foreColor.B * alpha);
 
             GL.TexCoord2(glyphX * glyphRatio, glyphY * glyphRatio);
@@ -139,7 +138,7 @@ namespace RogueInProgress
 
         public void DrawFragment(MapData map, int gridWidth, int gridHeight)
         {
-            double alpha = Math.Cos(sw.ElapsedMilliseconds / 250);
+            double alpha = Math.Cos(sw.ElapsedMilliseconds / 100);
 
             for (int gx = 0; gx < gridWidth; gx++)
             {
@@ -271,6 +270,8 @@ namespace RogueInProgress
 
                         map.ship[(x - map.fragmentX, y - map.fragmentY)] = tile;
                     }
+
+                    fragmentPlacementMode = false;
                 }
             }
 
@@ -335,7 +336,11 @@ namespace RogueInProgress
             GL.Begin(PrimitiveType.Quads);
 
             render.DrawShip(map, 32, 32);
-            render.DrawFragment(map, 32, 32);
+
+            if (fragmentPlacementMode)
+            {
+                render.DrawFragment(map, 32, 32);
+            }
 
             GL.End();
 
